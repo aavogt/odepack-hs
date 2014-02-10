@@ -1,0 +1,25 @@
+name:                odepack-hs
+version:             0
+synopsis:            partial binding to ODEPACK
+description:         partial binding to ODEPACK
+license:             BSD3
+license-file:        LICENSE
+author:              Adam Vogt
+maintainer:          Adam Vogt <vogt.adam@gmail.com>
+category:            Development, Math
+build-type:          Simple
+cabal-version:       >=1.10
+
+extra-source-files:  cbits/odepack.h
+
+library
+  exposed-modules:     Odepack.Raw, Odepack.Tst
+  other-extensions:    ForeignFunctionInterface
+  build-depends:       base <5,
+                       vector >=0.10 && <0.11,
+                       bindings-DSL          
+  build-tools:         hsc2hs
+  default-language:    Haskell2010
+  c-sources:           cbits/odepack.c
+  include-dirs:        cbits
+  extra-libraries:     f2c
