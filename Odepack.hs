@@ -1,18 +1,21 @@
-{-# LANGUAGE PolyKinds #-}
 module Odepack where
 
 import Control.Monad
-import Foreign.Storable
-import Foreign.Ptr
-import Foreign.C
+import Data.Foldable (for_)
 import Data.HList.CommonMain
-
-import qualified Data.Vector.Storable.Mutable as VM
-import qualified Data.Vector.Storable as VS
 import Data.IORef
+import Data.Vector (Vector, (!))
+import Foreign.C
+import Foreign.ForeignPtr
 import Foreign.Marshal
-
+import Foreign.Ptr
+import Foreign.Storable
+import Numeric.AD
+import Numeric.AD.Types (Mode, AD)
 import Odepack.Raw
+import qualified Data.Vector as V
+import qualified Data.Vector.Storable as VS
+import qualified Data.Vector.Storable.Mutable as VM
 
 deSolve' [pun| f y rwork iwork atol rtol times
           h0 hmax hmin maxord mxstep mxhnil
@@ -159,18 +162,54 @@ deSolveDef = let
           maxl kmp lwp liwp psol
           mxords mxordn fjac g jroot mf checkIState |]
 
+-- | likely an unsafe method for getting a "Data.Vector.Storable.Mutable" out of a 'Ptr'
+ptrToVS n p = do
+    fp <- newForeignPtr_ p
+    return (VM.unsafeFromForeignPtr0 fp (fromIntegral n))
+
+
+mkFFJAC :: (forall a. RealFloat a => a -> Vector a -> Vector a)
+  -> (F_, Maybe FJAC_)
+mkFFJAC fn = (mkF fn, Just (mkFJAC fn))
+
+mkF :: (forall a. RealFloat a => a -> Vector a -> Vector a) -> F_
+mkF fn neq t y dydt = do
+  n <- peek neq
+  dydt <- ptrToVS n dydt
+  y <- ptrToVS n y
+  t <- peek t
+  VM.copy dydt =<< VS.thaw . V.convert . fn t . V.convert =<< VS.freeze y
+
+mkFJAC :: (forall a. RealFloat a => a -> Vector a -> Vector a)
+  -> FJAC_
+mkFJAC fn neq t y ml mu pd nrowpd = do
+  n <- peek neq
+  nrowpd <- peek nrowpd
+  y <- VS.freeze =<< ptrToVS n y
+  t <- peek t
+  let jac = jacobian (fn (realToFrac t)) (V.convert y)
+
+  pd <- ptrToVS (nrowpd*n) pd
+
+  let fi = fromIntegral
+  for_ [0 .. n-1] $ \j ->
+    VM.copy (VM.slice (fi (nrowpd*j)) (fi (nrowpd*j + n-1)) pd)
+        =<< VS.unsafeThaw (V.convert (V.map (V.! fi j) jac))
+
 -- * example function
 
-exampleF :: F_
-exampleF neq t y dydt = poke dydt =<< peek y
-
 exampleMain = do
-    y0 <- VS.thaw (VS.fromList [1])
+    y0 <- VS.thaw (VS.fromList [2,0])
     deSolve' $ let
         mf = MethodAuto JacFull
-        f = exampleF
+
+        -- van-der-Pol example from odepk_prb1.f
+        (f,fjac) =  mkFFJAC $ \t y -> V.fromList
+              [y ! 1,
+               3 * (1 - y!0 * y!0) * y!1 - y!0]
         y = y0
         stepOp = do
           print =<< VS.freeze y0
           return True
-     in [pun| f y stepOp mf |] .<++. deSolveDef
+        dtout = 2.214773875
+     in [pun| f fjac y stepOp mf dtout |] .<++. deSolveDef
