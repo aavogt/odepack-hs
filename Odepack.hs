@@ -168,8 +168,10 @@ ptrToVS n p = do
 
 
 mkFFJAC :: (forall a. RealFloat a => a -> Vector a -> Vector a)
-  -> (F_, Maybe FJAC_)
-mkFFJAC fn = (mkF fn, Just (mkFJAC fn))
+  -> Record [ Tagged "f" F_, Tagged "fjac" (Maybe FJAC_) ]
+mkFFJAC fn = let f = mkF fn
+                 fjac = Just (mkFJAC fn)
+        in [pun| f fjac |]
 
 mkF :: (forall a. RealFloat a => a -> Vector a -> Vector a) -> F_
 mkF fn neq t y dydt = do
@@ -203,12 +205,13 @@ exampleMain = do
         mf = MethodAuto JacFull
 
         -- van-der-Pol example from odepk_prb1.f
-        (f,fjac) =  mkFFJAC $ \t y -> V.fromList
+        ffjac =  mkFFJAC $ \t y -> V.fromList
               [y ! 1,
                3 * (1 - y!0 * y!0) * y!1 - y!0]
+
         y = y0
         stepOp = do
           print =<< VS.freeze y0
           return True
         dtout = 2.214773875
-     in [pun| f fjac y stepOp mf dtout |] .<++. deSolveDef
+     in ffjac .<++. [pun| y stepOp mf dtout |] .<++. deSolveDef
