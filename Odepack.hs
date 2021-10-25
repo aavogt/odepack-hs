@@ -11,7 +11,6 @@ import Foreign.Marshal
 import Foreign.Ptr
 import Foreign.Storable
 import Numeric.AD
-import Numeric.AD.Types (Mode, AD)
 import Odepack.Raw
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS
