@@ -1989,9 +1989,8 @@ doublereal dvnorm_(integer *n, doublereal *v, doublereal *w)
 
     /* Local variables */
     static integer i__, imax, lyhd, lyhn;
-    // extern /* Subroutine */ int dprep_(integer *, doublereal *, doublereal *, 
-	//     doublereal *, doublereal *, doublereal *, integer *, integer *, 
-	//     doublereal *, doublereal *, integer *, U_fp, U_fp);
+    /* extern * Subroutine * int dprep_(integer *, doublereal *, doublereal *, 
+                                          */
     static integer lewtn;
 
 /* ----------------------------------------------------------------------- */
@@ -14072,10 +14071,6 @@ L210:
 
     /* Local variables */
     static integer i__, imax, lyhd, lyhn, lewtn;
-    // extern /* Subroutine */ int dprepi_(integer *, doublereal *, doublereal *,
-	//      doublereal *, doublereal *, doublereal *, doublereal *, integer *
-	//     , integer *, integer *, integer *, doublereal *, doublereal *, 
-	//     integer *, U_fp, U_fp, U_fp);
 
 /* ----------------------------------------------------------------------- */
 /* This routine serves as an interface between the driver and */
